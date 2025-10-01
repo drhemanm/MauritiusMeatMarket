@@ -95,6 +95,16 @@ export interface Order {
   syncStatus?: 'synced' | 'pending' | 'failed';
 }
 
+/**
+ * Form data for creating a new order
+ */
+export interface CreateOrderData {
+  customerId: string;
+  items: Omit<OrderLine, 'id' | 'subtotal'>[];
+  deliveryAddress?: string;
+  notes?: string;
+}
+
 // ==================== CUSTOMERS ====================
 
 /**
