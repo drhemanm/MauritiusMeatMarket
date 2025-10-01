@@ -10,6 +10,7 @@
 
 import { ODOO_CONFIG, API_CONFIG } from '@/lib/config';
 import { authService } from '@/lib/auth/authService';
+import { offlineService } from '@/lib/offline/offlineService';
 import {
   Order,
   Customer,
@@ -189,28 +190,42 @@ class OdooService {
   }
 
   /**
-   * Create new order in Odoo
+   * Create new order in Odoo with invoice generation
    * 
-   * @param orderData - Order data
-   * @returns Created order
+   * @param orderData - Order data with discount and signature
+   * @returns Created order with invoice information
    */
-  public async createOrder(orderData: CreateOrderData): Promise<Order> {
+  public async createOrder(orderData: CreateOrderData): Promise<{
+    order: Order;
+    invoice?: {
+      id: string;
+      name: string;
+      state: string;
+      pdf_url?: string;
+      amount_total: number;
+    };
+    mra_status?: string;
+  }> {
     try {
-      await simulateApiDelay(1000);
+      await simulateApiDelay(1500);
 
       // TODO: Replace with actual Odoo API call
-      // const response = await this.apiCall<Order>('/odoo/orders', {
+      // const response = await this.apiCall<any>('/odoo/orders/create', {
       //   method: 'POST',
       //   body: JSON.stringify({
       //     model: 'sale.order',
-      //     method: 'create',
+      //     method: 'create_from_portal',
       //     args: [{
       //       partner_id: orderData.customerId,
       //       order_line: orderData.items.map(item => [0, 0, {
       //         product_id: item.productId,
       //         product_uom_qty: item.quantity,
       //         price_unit: item.unitPrice,
+      //         discount: item.discount || 0,
       //       }]),
+      //       note: orderData.notes,
+      //       client_order_ref: orderData.deliveryAddress,
+      //       signature_image: orderData.signature,
       //     }],
       //   }),
       // });
@@ -221,34 +236,71 @@ class OdooService {
       const customers = generateMockCustomers();
       const customer = customers.find(c => c.id === orderData.customerId);
 
+      // Calculate totals with discount
+      const itemsWithCalculations = orderData.items.map((item, index) => {
+        const subtotalBeforeDiscount = item.quantity * item.unitPrice;
+        const discountAmount = subtotalBeforeDiscount * (item.discount || 0) / 100;
+        const subtotal = subtotalBeforeDiscount - discountAmount;
+        
+        return {
+          id: `item-${Date.now()}-${index}`,
+          productId: item.productId,
+          productName: item.productName,
+          productImage: item.productImage,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discount: item.discount || 0,
+          subtotal: subtotal,
+        };
+      });
+
+      const subtotal = itemsWithCalculations.reduce((sum, item) => sum + item.subtotal, 0);
+      const tax = subtotal * 0.15; // 15% VAT
+      const total = subtotal + tax;
+
+      // Create order number
+      const orderNumber = `SO${String(orders.length + 1).padStart(4, '0')}`;
+      const invoiceNumber = `INV-2025-${String(orders.length + 1).padStart(5, '0')}`;
+
       const newOrder: Order = {
         id: `order-${Date.now()}`,
-        orderNumber: `SO${String(orders.length + 1).padStart(4, '0')}`,
+        orderNumber: orderNumber,
         customerId: orderData.customerId,
         customerName: customer?.name || 'Unknown Customer',
         date: new Date().toISOString().split('T')[0],
         status: 'pending',
-        items: orderData.items.map((item, index) => ({
-          ...item,
-          id: `item-${Date.now()}-${index}`,
-          subtotal: item.quantity * item.unitPrice,
-        })),
-        subtotal: orderData.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
-        tax: 0,
-        total: 0,
+        items: itemsWithCalculations,
+        subtotal: subtotal,
+        tax: tax,
+        total: total,
         salespersonId: user?.id || '',
         salespersonName: user?.name || '',
         deliveryAddress: orderData.deliveryAddress,
         notes: orderData.notes,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        syncStatus: 'pending',
+        syncStatus: 'synced',
       };
 
-      newOrder.tax = newOrder.subtotal * 0.15;
-      newOrder.total = newOrder.subtotal + newOrder.tax;
+      // Simulate invoice creation
+      const invoice = {
+        id: `inv-${Date.now()}`,
+        name: invoiceNumber,
+        state: 'posted',
+        pdf_url: `/api/invoices/${invoiceNumber}/pdf`,
+        amount_total: total,
+      };
 
-      return newOrder;
+      console.log('Order created:', orderNumber);
+      console.log('Invoice created:', invoiceNumber);
+      console.log('Signature saved:', orderData.signature ? 'Yes' : 'No');
+
+      // Return order with invoice
+      return {
+        order: newOrder,
+        invoice: invoice,
+        mra_status: 'submitted',
+      };
     } catch (error) {
       console.error('Error creating order:', error);
       throw error;
@@ -411,29 +463,25 @@ class OdooService {
       // TODO: Replace with actual Odoo API call
 
       // Mock implementation
-      const now = new Date().toISOString();
-      const today = now.split('T')[0];
-      
       const newCustomer: Customer = {
         id: `cust-${Date.now()}`,
         name: customerData.name || '',
         email: customerData.email || '',
         phone: customerData.phone || '',
-        status: 'active',
-        totalOrders: 0,
-        totalSpent: 0,
-        lastOrder: today,
-        lastOrderDate: today,
         address: customerData.address || '',
         city: customerData.city || '',
         country: customerData.country || 'Mauritius',
+        status: 'active',
+        totalOrders: 0,
+        totalSpent: 0,
+        lastOrderDate: new Date().toISOString().split('T')[0],
         billingAddress: customerData.billingAddress,
         shippingAddress: customerData.shippingAddress,
         company: customerData.company,
         taxId: customerData.taxId,
         notes: customerData.notes,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       return newCustomer;
