@@ -46,6 +46,15 @@ export const AUTH_CONFIG = {
   
   // Session timeout (7 days in milliseconds)
   sessionTimeout: 7 * 24 * 60 * 60 * 1000,
+  
+  // Password requirements (ADDED THIS SECTION)
+  password: {
+    minLength: 8,
+    requireUppercase: true,
+    requireLowercase: true,
+    requireNumbers: true,
+    requireSpecialChars: false,
+  },
 } as const;
 
 /**
