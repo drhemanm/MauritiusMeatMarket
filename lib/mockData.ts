@@ -207,6 +207,10 @@ export function generateMockCustomers(): Customer[] {
       totalOrders: 45,
       totalSpent: 125000,
       lastOrder: '2024-09-28',
+      lastOrderDate: '2024-09-28',
+      address: '123 Royal Road',
+      city: 'Port Louis',
+      country: 'Mauritius',
       billingAddress: '123 Royal Road, Port Louis',
       shippingAddress: '123 Royal Road, Port Louis',
       company: 'Le Gourmet Ltd',
@@ -225,6 +229,10 @@ export function generateMockCustomers(): Customer[] {
       totalOrders: 32,
       totalSpent: 89000,
       lastOrder: '2024-09-25',
+      lastOrderDate: '2024-09-25',
+      address: '456 Coastal Road',
+      city: 'Flic en Flac',
+      country: 'Mauritius',
       billingAddress: '456 Coastal Road, Flic en Flac',
       shippingAddress: '456 Coastal Road, Flic en Flac',
       company: 'Ocean View Hotels Ltd',
@@ -243,6 +251,10 @@ export function generateMockCustomers(): Customer[] {
       totalOrders: 78,
       totalSpent: 234000,
       lastOrder: '2024-09-30',
+      lastOrderDate: '2024-09-30',
+      address: '789 Market Street',
+      city: 'Curepipe',
+      country: 'Mauritius',
       billingAddress: '789 Market Street, Curepipe',
       shippingAddress: 'Multiple locations',
       company: 'SuperMart Ltd',
@@ -261,6 +273,10 @@ export function generateMockCustomers(): Customer[] {
       totalOrders: 28,
       totalSpent: 56000,
       lastOrder: '2024-09-29',
+      lastOrderDate: '2024-09-29',
+      address: '321 Beach Road',
+      city: 'Grand Baie',
+      country: 'Mauritius',
       billingAddress: '321 Beach Road, Grand Baie',
       shippingAddress: '321 Beach Road, Grand Baie',
       company: 'Island Bistro SARL',
@@ -279,6 +295,10 @@ export function generateMockCustomers(): Customer[] {
       totalOrders: 52,
       totalSpent: 142000,
       lastOrder: '2024-09-27',
+      lastOrderDate: '2024-09-27',
+      address: '654 Main Street',
+      city: 'Quatre Bornes',
+      country: 'Mauritius',
       billingAddress: '654 Main Street, Quatre Bornes',
       shippingAddress: '654 Main Street, Quatre Bornes',
       company: 'Fresh Foods Ltd',
@@ -297,6 +317,10 @@ export function generateMockCustomers(): Customer[] {
       totalOrders: 38,
       totalSpent: 168000,
       lastOrder: '2024-09-26',
+      lastOrderDate: '2024-09-26',
+      address: '987 Coastal Highway',
+      city: 'Belle Mare',
+      country: 'Mauritius',
       billingAddress: '987 Coastal Highway, Belle Mare',
       shippingAddress: '987 Coastal Highway, Belle Mare',
       company: 'Paradise Resort Group',
@@ -346,14 +370,14 @@ export function generateMockOrders(): Order[] {
         quantity,
         unitPrice: product.price,
         subtotal: itemSubtotal,
-        tax: itemSubtotal * 0.15, // 15% tax
+        tax: itemSubtotal * 0.15,
         discount: 0,
       });
       
       subtotal += itemSubtotal;
     }
     
-    const tax = subtotal * 0.15; // 15% VAT
+    const tax = subtotal * 0.15;
     const total = subtotal + tax;
     
     // Generate date within last 90 days
