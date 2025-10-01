@@ -4,6 +4,7 @@
  * Complete customer management interface with:
  * - Customer list with search and filters
  * - Customer details modal
+ * - Purchase history
  * - Add/Edit customer forms
  * - Customer statistics
  * 
@@ -19,6 +20,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { 
   Search, 
+  Filter, 
   Plus, 
   Eye, 
   Edit, 
@@ -34,7 +36,7 @@ import {
 } from 'lucide-react';
 import { useCustomerStore } from '@/lib/stores';
 import { Customer, CustomerStatus } from '@/types';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { useNotifications } from '@/lib/stores/notificationStore';
 
 export default function CustomersPage() {
@@ -135,23 +137,47 @@ export default function CustomersPage() {
         await updateCustomer(editingCustomer.id, customerForm);
         notifications.success('Success', 'Customer updated successfully');
       } else {
-        await addCustomer(customerForm);
+        // Create full customer object with all required fields
+        const newCustomer: Customer = {
+          id: `cust-${Date.now()}`,
+          name: customerForm.name,
+          email: customerForm.email,
+          phone: customerForm.phone,
+          address: customerForm.address,
+          city: customerForm.city,
+          country: customerForm.country,
+          status: 'active',
+          totalOrders: 0,
+          totalSpent: 0,
+          lastOrderDate: new Date().toISOString().split('T')[0],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        
+        addCustomer(newCustomer);
         notifications.success('Success', 'Customer added successfully');
       }
+      
       setShowAddCustomerModal(false);
+      setEditingCustomer(null);
+      setCustomerForm({
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+        city: '',
+        country: 'Mauritius',
+      });
     } catch (error) {
       notifications.error('Error', 'Failed to save customer');
+      console.error('Save customer error:', error);
     }
   };
 
-  const handleDeleteCustomer = async (customerId: string) => {
+  const handleDeleteCustomer = (customerId: string) => {
     if (confirm('Are you sure you want to delete this customer?')) {
-      try {
-        await deleteCustomer(customerId);
-        notifications.success('Success', 'Customer deleted successfully');
-      } catch (error) {
-        notifications.error('Error', 'Failed to delete customer');
-      }
+      deleteCustomer(customerId);
+      notifications.success('Success', 'Customer deleted successfully');
     }
   };
 
@@ -172,7 +198,7 @@ export default function CustomersPage() {
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
-  if (isLoading && customers.length === 0) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
@@ -374,7 +400,7 @@ export default function CustomersPage() {
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
                           <span className="text-sm font-semibold text-primary-600">
-                            {customer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                            {customer.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                           </span>
                         </div>
                         <div>
@@ -519,7 +545,7 @@ export default function CustomersPage() {
                   <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                     <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
                       <span className="text-xl font-bold text-primary-600">
-                        {selectedCustomer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        {selectedCustomer.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                       </span>
                     </div>
                     <div className="flex-1">
@@ -602,7 +628,7 @@ export default function CustomersPage() {
                       </div>
                       <div className="p-4 bg-warning-50 rounded-lg text-center">
                         <p className="text-2xl font-bold text-warning-600">
-                          {formatCurrency(selectedCustomer.totalSpent / selectedCustomer.totalOrders)}
+                          {formatCurrency(selectedCustomer.totalOrders > 0 ? selectedCustomer.totalSpent / selectedCustomer.totalOrders : 0)}
                         </p>
                         <p className="text-xs text-gray-600 mt-1">Avg Order</p>
                       </div>
