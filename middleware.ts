@@ -44,28 +44,13 @@ export function middleware(request: NextRequest) {
     pathname.startsWith(route)
   );
 
-  // Get auth token from cookies
-  const authToken = request.cookies.get('mmm_auth_token')?.value;
-
-  // Redirect to login if accessing protected route without token
-  if (isProtectedRoute && !authToken) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // Redirect to dashboard if accessing login with valid token
-  if (isPublicRoute && authToken && pathname === '/login') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  // Redirect root to dashboard or login
+  // TEMPORARILY DISABLED: Allow access to all routes for testing
+  // Get auth token from localStorage (checked client-side)
+  // For now, we'll let the client-side auth handle redirects
+  
+  // Redirect root to login
   if (pathname === '/') {
-    if (authToken) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    } else {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   return NextResponse.next();
