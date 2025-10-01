@@ -4,7 +4,6 @@
  * Complete customer management interface with:
  * - Customer list with search and filters
  * - Customer details modal
- * - Purchase history
  * - Add/Edit customer forms
  * - Customer statistics
  * 
@@ -13,14 +12,13 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { 
   Search, 
-  Filter, 
   Plus, 
   Eye, 
   Edit, 
@@ -35,11 +33,13 @@ import {
   X
 } from 'lucide-react';
 import { useCustomerStore } from '@/lib/stores';
-import { Customer, CustomerStatus } from '@/lib/types';
-import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { Customer, CustomerStatus } from '@/types';
+import { formatCurrency, formatDate } from '@/lib/utils';
+import { useNotifications } from '@/lib/stores/notificationStore';
 
 export default function CustomersPage() {
-  const { customers } = useCustomerStore();
+  const { customers, fetchCustomers, addCustomer, updateCustomer, deleteCustomer, isLoading } = useCustomerStore();
+  const notifications = useNotifications();
   
   // State
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,8 +56,13 @@ export default function CustomersPage() {
     phone: '',
     address: '',
     city: '',
-    country: '',
+    country: 'Mauritius',
   });
+
+  // Fetch customers on mount
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   // Filter customers
   const filteredCustomers = useMemo(() => {
@@ -80,14 +85,15 @@ export default function CustomersPage() {
     const activeCustomers = customers.filter(c => c.status === 'active').length;
     const inactiveCustomers = customers.filter(c => c.status === 'inactive').length;
     const totalRevenue = customers.reduce((sum, c) => sum + c.totalSpent, 0);
-    const averageOrderValue = totalRevenue / customers.reduce((sum, c) => sum + c.totalOrders, 0);
+    const totalOrders = customers.reduce((sum, c) => sum + c.totalOrders, 0);
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
     return {
       totalCustomers,
       activeCustomers,
       inactiveCustomers,
       totalRevenue,
-      averageOrderValue: isNaN(averageOrderValue) ? 0 : averageOrderValue,
+      averageOrderValue,
     };
   }, [customers]);
 
@@ -118,21 +124,34 @@ export default function CustomersPage() {
       phone: '',
       address: '',
       city: '',
-      country: '',
+      country: 'Mauritius',
     });
     setShowAddCustomerModal(true);
   };
 
-  const handleSaveCustomer = () => {
-    // TODO: Integrate with Odoo API
-    console.log('Saving customer:', customerForm);
-    setShowAddCustomerModal(false);
+  const handleSaveCustomer = async () => {
+    try {
+      if (editingCustomer) {
+        await updateCustomer(editingCustomer.id, customerForm);
+        notifications.success('Success', 'Customer updated successfully');
+      } else {
+        await addCustomer(customerForm);
+        notifications.success('Success', 'Customer added successfully');
+      }
+      setShowAddCustomerModal(false);
+    } catch (error) {
+      notifications.error('Error', 'Failed to save customer');
+    }
   };
 
-  const handleDeleteCustomer = (customerId: string) => {
+  const handleDeleteCustomer = async (customerId: string) => {
     if (confirm('Are you sure you want to delete this customer?')) {
-      // TODO: Integrate with Odoo API
-      console.log('Deleting customer:', customerId);
+      try {
+        await deleteCustomer(customerId);
+        notifications.success('Success', 'Customer deleted successfully');
+      } catch (error) {
+        notifications.error('Error', 'Failed to delete customer');
+      }
     }
   };
 
@@ -153,308 +172,318 @@ export default function CustomersPage() {
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
+  if (isLoading && customers.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading customers...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Manage your customer relationships
-            </p>
-          </div>
-          <Button
-            variant="primary"
-            leftIcon={<Plus className="w-4 h-4" />}
-            onClick={handleAddCustomer}
-          >
-            Add Customer
-          </Button>
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Manage your customer relationships
+          </p>
         </div>
+        <Button
+          variant="primary"
+          leftIcon={<Plus className="w-4 h-4" />}
+          onClick={handleAddCustomer}
+        >
+          Add Customer
+        </Button>
+      </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <Card>
-            <Card.Body className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600 mb-1">Total Customers</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {stats.totalCustomers}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
-                  <User className="w-6 h-6 text-primary-600" />
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-
-          <Card>
-            <Card.Body className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600 mb-1">Active</p>
-                  <p className="text-2xl font-bold text-success-600">
-                    {stats.activeCustomers}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-success-100 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-success-600" />
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-
-          <Card>
-            <Card.Body className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600 mb-1">Inactive</p>
-                  <p className="text-2xl font-bold text-warning-600">
-                    {stats.inactiveCustomers}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-warning-100 rounded-lg flex items-center justify-center">
-                  <User className="w-6 h-6 text-warning-600" />
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-
-          <Card>
-            <Card.Body className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600 mb-1">Total Revenue</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {formatCurrency(stats.totalRevenue)}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
-                  <ShoppingBag className="w-6 h-6 text-primary-600" />
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-
-          <Card>
-            <Card.Body className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600 mb-1">Avg Order Value</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {formatCurrency(stats.averageOrderValue)}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-success-100 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-success-600" />
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </div>
-
-        {/* Filters and Search */}
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <Card.Body className="p-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              {/* Search */}
-              <div className="flex-1">
-                <Input
-                  type="text"
-                  placeholder="Search by name, email, or phone..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  leftIcon={<Search className="w-4 h-4 text-gray-400" />}
-                />
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-600 mb-1">Total Customers</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.totalCustomers}
+                </p>
               </div>
-
-              {/* Status Filter */}
-              <div className="flex gap-2">
-                <Button
-                  variant={selectedStatus === 'all' ? 'primary' : 'secondary'}
-                  size="sm"
-                  onClick={() => setSelectedStatus('all')}
-                >
-                  All
-                </Button>
-                <Button
-                  variant={selectedStatus === 'active' ? 'primary' : 'secondary'}
-                  size="sm"
-                  onClick={() => setSelectedStatus('active')}
-                >
-                  Active
-                </Button>
-                <Button
-                  variant={selectedStatus === 'inactive' ? 'primary' : 'secondary'}
-                  size="sm"
-                  onClick={() => setSelectedStatus('inactive')}
-                >
-                  Inactive
-                </Button>
+              <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                <User className="w-6 h-6 text-primary-600" />
               </div>
             </div>
           </Card.Body>
         </Card>
 
-        {/* Customers Table */}
         <Card>
-          <Card.Header>
-            <h2 className="text-lg font-semibold text-gray-900">
-              Customer List ({filteredCustomers.length})
-            </h2>
-          </Card.Header>
-          <Card.Body className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Customer
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Contact
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Location
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Orders
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Total Spent
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredCustomers.map((customer) => (
-                    <tr 
-                      key={customer.id}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
-                      {/* Customer Info */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-sm font-semibold text-primary-600">
-                              {customer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                            </span>
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {customer.name}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Member since {formatDate(customer.createdAt)}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Contact */}
-                      <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Mail className="w-3 h-3" />
-                            {customer.email}
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Phone className="w-3 h-3" />
-                            {customer.phone}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Location */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <MapPin className="w-3 h-3" />
-                          <span>{customer.city}, {customer.country}</span>
-                        </div>
-                      </td>
-
-                      {/* Orders */}
-                      <td className="px-6 py-4 text-center">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {customer.totalOrders}
-                        </p>
-                      </td>
-
-                      {/* Total Spent */}
-                      <td className="px-6 py-4 text-right">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {formatCurrency(customer.totalSpent)}
-                        </p>
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-6 py-4">
-                        <div className="flex justify-center">
-                          <Badge
-                            variant={getStatusVariant(customer.status)}
-                            dot
-                          >
-                            {formatStatus(customer.status)}
-                          </Badge>
-                        </div>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="px-6 py-4">
-                        <div className="flex justify-center gap-2">
-                          <button
-                            onClick={() => handleViewCustomer(customer)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="View Details"
-                          >
-                            <Eye className="w-4 h-4 text-gray-600" />
-                          </button>
-                          <button
-                            onClick={() => handleEditCustomer(customer)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Edit Customer"
-                          >
-                            <Edit className="w-4 h-4 text-gray-600" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCustomer(customer.id)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Delete Customer"
-                          >
-                            <Trash2 className="w-4 h-4 text-danger-600" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Empty State */}
-            {filteredCustomers.length === 0 && (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <User className="w-8 h-8 text-gray-400" />
-                </div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                  No customers found
-                </h3>
-                <p className="text-sm text-gray-500">
-                  Try adjusting your search or filters
+          <Card.Body className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-600 mb-1">Active</p>
+                <p className="text-2xl font-bold text-success-600">
+                  {stats.activeCustomers}
                 </p>
               </div>
-            )}
+              <div className="w-12 h-12 bg-success-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-success-600" />
+              </div>
+            </div>
+          </Card.Body>
+        </Card>
+
+        <Card>
+          <Card.Body className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-600 mb-1">Inactive</p>
+                <p className="text-2xl font-bold text-warning-600">
+                  {stats.inactiveCustomers}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-warning-100 rounded-lg flex items-center justify-center">
+                <User className="w-6 h-6 text-warning-600" />
+              </div>
+            </div>
+          </Card.Body>
+        </Card>
+
+        <Card>
+          <Card.Body className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-600 mb-1">Total Revenue</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(stats.totalRevenue)}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                <ShoppingBag className="w-6 h-6 text-primary-600" />
+              </div>
+            </div>
+          </Card.Body>
+        </Card>
+
+        <Card>
+          <Card.Body className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-600 mb-1">Avg Order Value</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(stats.averageOrderValue)}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-success-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-success-600" />
+              </div>
+            </div>
           </Card.Body>
         </Card>
       </div>
+
+      {/* Filters and Search */}
+      <Card>
+        <Card.Body className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1">
+              <Input
+                type="text"
+                placeholder="Search by name, email, or phone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                leftIcon={<Search className="w-4 h-4 text-gray-400" />}
+              />
+            </div>
+
+            {/* Status Filter */}
+            <div className="flex gap-2">
+              <Button
+                variant={selectedStatus === 'all' ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => setSelectedStatus('all')}
+              >
+                All
+              </Button>
+              <Button
+                variant={selectedStatus === 'active' ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => setSelectedStatus('active')}
+              >
+                Active
+              </Button>
+              <Button
+                variant={selectedStatus === 'inactive' ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => setSelectedStatus('inactive')}
+              >
+                Inactive
+              </Button>
+            </div>
+          </div>
+        </Card.Body>
+      </Card>
+
+      {/* Customers Table */}
+      <Card>
+        <Card.Header>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Customer List ({filteredCustomers.length})
+          </h2>
+        </Card.Header>
+        <Card.Body className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Orders
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Total Spent
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredCustomers.map((customer) => (
+                  <tr 
+                    key={customer.id}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
+                    {/* Customer Info */}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm font-semibold text-primary-600">
+                            {customer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {customer.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Member since {formatDate(customer.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Contact */}
+                    <td className="px-6 py-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <Mail className="w-3 h-3" />
+                          {customer.email}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <Phone className="w-3 h-3" />
+                          {customer.phone}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Location */}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <MapPin className="w-3 h-3" />
+                        <span>{customer.city}, {customer.country}</span>
+                      </div>
+                    </td>
+
+                    {/* Orders */}
+                    <td className="px-6 py-4 text-center">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {customer.totalOrders}
+                      </p>
+                    </td>
+
+                    {/* Total Spent */}
+                    <td className="px-6 py-4 text-right">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {formatCurrency(customer.totalSpent)}
+                      </p>
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-6 py-4">
+                      <div className="flex justify-center">
+                        <Badge
+                          variant={getStatusVariant(customer.status)}
+                          dot
+                        >
+                          {formatStatus(customer.status)}
+                        </Badge>
+                      </div>
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-6 py-4">
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => handleViewCustomer(customer)}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4 text-gray-600" />
+                        </button>
+                        <button
+                          onClick={() => handleEditCustomer(customer)}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Edit Customer"
+                        >
+                          <Edit className="w-4 h-4 text-gray-600" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCustomer(customer.id)}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Delete Customer"
+                        >
+                          <Trash2 className="w-4 h-4 text-danger-600" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Empty State */}
+          {filteredCustomers.length === 0 && (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <User className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                No customers found
+              </h3>
+              <p className="text-sm text-gray-500">
+                Try adjusting your search or filters
+              </p>
+            </div>
+          )}
+        </Card.Body>
+      </Card>
 
       {/* Customer Details Modal */}
       {showCustomerModal && selectedCustomer && (
@@ -647,78 +676,60 @@ export default function CustomersPage() {
                 {/* Modal Body */}
                 <div className="p-6 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Full Name *
-                      </label>
-                      <Input
-                        type="text"
-                        placeholder="John Doe"
-                        value={customerForm.name}
-                        onChange={(e) => setCustomerForm({ ...customerForm, name: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email *
-                      </label>
-                      <Input
-                        type="email"
-                        placeholder="john@example.com"
-                        value={customerForm.email}
-                        onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
-                      />
-                    </div>
+                    <Input
+                      label="Full Name *"
+                      type="text"
+                      placeholder="John Doe"
+                      value={customerForm.name}
+                      onChange={(e) => setCustomerForm({ ...customerForm, name: e.target.value })}
+                      fullWidth
+                    />
+                    <Input
+                      label="Email *"
+                      type="email"
+                      placeholder="john@example.com"
+                      value={customerForm.email}
+                      onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
+                      fullWidth
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Phone *
-                      </label>
-                      <Input
-                        type="tel"
-                        placeholder="+230 5123 4567"
-                        value={customerForm.phone}
-                        onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        City
-                      </label>
-                      <Input
-                        type="text"
-                        placeholder="Port Louis"
-                        value={customerForm.city}
-                        onChange={(e) => setCustomerForm({ ...customerForm, city: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Address
-                    </label>
                     <Input
+                      label="Phone *"
+                      type="tel"
+                      placeholder="+230 5123 4567"
+                      value={customerForm.phone}
+                      onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })}
+                      fullWidth
+                    />
+                    <Input
+                      label="City"
                       type="text"
-                      placeholder="Street address"
-                      value={customerForm.address}
-                      onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
+                      placeholder="Port Louis"
+                      value={customerForm.city}
+                      onChange={(e) => setCustomerForm({ ...customerForm, city: e.target.value })}
+                      fullWidth
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Country
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="Mauritius"
-                      value={customerForm.country}
-                      onChange={(e) => setCustomerForm({ ...customerForm, country: e.target.value })}
-                    />
-                  </div>
+                  <Input
+                    label="Address"
+                    type="text"
+                    placeholder="Street address"
+                    value={customerForm.address}
+                    onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
+                    fullWidth
+                  />
+
+                  <Input
+                    label="Country"
+                    type="text"
+                    placeholder="Mauritius"
+                    value={customerForm.country}
+                    onChange={(e) => setCustomerForm({ ...customerForm, country: e.target.value })}
+                    fullWidth
+                  />
                 </div>
 
                 {/* Modal Footer */}
@@ -732,6 +743,7 @@ export default function CustomersPage() {
                   <Button
                     variant="primary"
                     onClick={handleSaveCustomer}
+                    disabled={!customerForm.name || !customerForm.email || !customerForm.phone}
                   >
                     {editingCustomer ? 'Save Changes' : 'Add Customer'}
                   </Button>
@@ -741,6 +753,6 @@ export default function CustomersPage() {
           </div>
         </>
       )}
-    </DashboardLayout>
+    </div>
   );
 }
