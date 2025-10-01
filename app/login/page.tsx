@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Button, Input } from '@/components/ui';
 import { useAuthStore } from '@/lib/stores';
 import { cn } from '@/lib/utils';
@@ -22,13 +22,20 @@ import { DEV_CREDENTIALS } from '@/lib/auth/authService';
  */
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isAuthenticated, error, clearError, isLoading } = useAuthStore();
+  const { login, isAuthenticated, error, clearError, isLoading, checkAuth } = useAuthStore();
 
   // Form state
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+
+  /**
+   * Check auth on mount
+   */
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   /**
    * Redirect if already authenticated
@@ -46,7 +53,7 @@ export default function LoginPage() {
     if (error) {
       clearError();
     }
-  }, [username, password]);
+  }, [username, password, clearError]);
 
   /**
    * Handle form submission
@@ -60,7 +67,7 @@ export default function LoginPage() {
 
     try {
       await login({ username, password });
-      router.push('/dashboard');
+      // Redirect will happen via useEffect when isAuthenticated becomes true
     } catch (err) {
       // Error is handled by the store
       console.error('Login failed:', err);
@@ -77,7 +84,7 @@ export default function LoginPage() {
 
     try {
       await login(credentials);
-      router.push('/dashboard');
+      // Redirect will happen via useEffect
     } catch (err) {
       console.error('Quick login failed:', err);
     }
