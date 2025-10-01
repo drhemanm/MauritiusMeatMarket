@@ -1,85 +1,143 @@
 /**
- * Sync Store
+ * Authentication Store
  * 
- * Global state management for offline sync status using Zustand.
- * Manages online/offline state and sync operations.
+ * Global state management for authentication using Zustand.
+ * Manages user session, login/logout, and auth state.
  * 
- * @module lib/stores/syncStore
+ * @module lib/stores/authStore
  */
 
 import { create } from 'zustand';
-import { SyncStatus } from '@/types';
-import { offlineService } from '@/lib/offline/offlineService';
+import { User, LoginCredentials } from '@/types';
+import { authService } from '@/lib/auth/authService';
 
 /**
- * Sync state interface
+ * Authentication state interface
  */
-interface SyncState {
+interface AuthState {
   // State
-  isOnline: boolean;
-  lastSyncTime: Date | null;
-  pendingItems: number;
-  isSyncing: boolean;
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
 
   // Actions
-  updateSyncStatus: (status: SyncStatus) => void;
-  triggerSync: () => Promise<void>;
-  initialize: () => void;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  logout: () => Promise<void>;
+  checkAuth: () => void;
+  clearError: () => void;
+  updateUser: (updates: Partial<User>) => Promise<void>;
 }
 
 /**
- * Sync store
- * Manages offline sync state globally
+ * Authentication store
+ * Manages authentication state globally
  */
-export const useSyncStore = create<SyncState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   // Initial state
-  isOnline: true,
-  lastSyncTime: null,
-  pendingItems: 0,
-  isSyncing: false,
+  user: null,
+  isAuthenticated: false,
+  isLoading: false,
+  error: null,
 
   /**
-   * Update sync status
-   * Called by offlineService when status changes
+   * Login user with credentials
    * 
-   * @param status - New sync status
+   * @param credentials - Login credentials
    */
-  updateSyncStatus: (status: SyncStatus) => {
-    set({
-      isOnline: status.isOnline,
-      lastSyncTime: status.lastSyncTime,
-      pendingItems: status.pendingItems,
-      isSyncing: status.isSyncing,
-    });
-  },
+  login: async (credentials: LoginCredentials) => {
+    set({ isLoading: true, error: null });
 
-  /**
-   * Manually trigger sync
-   */
-  triggerSync: async () => {
-    if (get().isOnline && !get().isSyncing) {
-      set({ isSyncing: true });
-      try {
-        await offlineService.syncAll();
-      } catch (error) {
-        console.error('Manual sync failed:', error);
-      } finally {
-        set({ isSyncing: false });
-      }
+    try {
+      const response = await authService.login(credentials);
+      
+      set({
+        user: response.user,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Login failed',
+      });
+      throw error;
     }
   },
 
   /**
-   * Initialize sync store
-   * Subscribe to offlineService updates
+   * Logout current user
    */
-  initialize: () => {
-    // Subscribe to offline service updates
-    const unsubscribe = offlineService.subscribe((status) => {
-      get().updateSyncStatus(status);
-    });
+  logout: async () => {
+    set({ isLoading: true });
 
-    // Store unsubscribe function for cleanup
-    // In a real app, you'd want to handle cleanup properly
+    try {
+      await authService.logout();
+      
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Clear state even if logout fails
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
+      });
+    }
+  },
+
+  /**
+   * Check if user is authenticated (on app load)
+   */
+  checkAuth: () => {
+    const isAuth = authService.isAuthenticated();
+    const user = authService.getCurrentUser();
+
+    set({
+      user,
+      isAuthenticated: isAuth,
+      isLoading: false,
+    });
+  },
+
+  /**
+   * Clear error message
+   */
+  clearError: () => {
+    set({ error: null });
+  },
+
+  /**
+   * Update user profile
+   * 
+   * @param updates - Partial user data to update
+   */
+  updateUser: async (updates: Partial<User>) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      const updatedUser = await authService.updateProfile(updates);
+      
+      set({
+        user: updatedUser,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      set({
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Update failed',
+      });
+      throw error;
+    }
   },
 }));
