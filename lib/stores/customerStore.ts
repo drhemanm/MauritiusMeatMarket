@@ -2,7 +2,7 @@
  * Customer Store
  * 
  * Global state management for customers using Zustand.
- * Manages customer data, CRUD operations, and state.
+ * Manages customer data, fetching, and caching.
  * 
  * @module lib/stores/customerStore
  */
@@ -19,130 +19,115 @@ interface CustomerState {
   customers: Customer[];
   isLoading: boolean;
   error: string | null;
-  
+  lastFetched: Date | null;
+
   // Actions
-  fetchCustomers: () => Promise<void>;
-  addCustomer: (customer: Partial<Customer>) => Promise<void>;
-  updateCustomer: (id: string, updates: Partial<Customer>) => Promise<void>;
-  deleteCustomer: (id: string) => Promise<void>;
-  clearError: () => void;
+  fetchCustomers: (force?: boolean) => Promise<void>;
+  getCustomerById: (id: string) => Customer | undefined;
+  addCustomer: (customer: Customer) => void;
+  updateCustomer: (id: string, updates: Partial<Customer>) => void;
+  clearCustomers: () => void;
 }
 
 /**
  * Customer store
- * Manages customer state globally
+ * Manages customer data globally with caching
  */
 export const useCustomerStore = create<CustomerState>((set, get) => ({
   // Initial state
   customers: [],
   isLoading: false,
   error: null,
+  lastFetched: null,
 
   /**
-   * Fetch all customers from Odoo
+   * Fetch customers from Odoo
+   * Includes caching to avoid unnecessary API calls
+   * 
+   * @param force - Force refresh even if cached
    */
-  fetchCustomers: async () => {
+  fetchCustomers: async (force = false) => {
+    const { lastFetched, isLoading } = get();
+
+    // Don't fetch if already loading
+    if (isLoading) return;
+
+    // Use cache if available and less than 5 minutes old
+    if (!force && lastFetched) {
+      const cacheAge = Date.now() - lastFetched.getTime();
+      const fiveMinutes = 5 * 60 * 1000;
+      if (cacheAge < fiveMinutes) {
+        console.log('Using cached customers');
+        return;
+      }
+    }
+
     set({ isLoading: true, error: null });
-    
+
     try {
-      const response = await odooService.getCustomers(undefined, 1, 1000);
-      set({ 
-        customers: response.data, 
+      const response = await odooService.getCustomers(undefined, 1, 200);
+      set({
+        customers: response.data,
         isLoading: false,
-        error: null 
+        error: null,
+        lastFetched: new Date(),
       });
+      console.log(`Fetched ${response.data.length} customers`);
     } catch (error) {
       console.error('Error fetching customers:', error);
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to fetch customers',
-        isLoading: false 
-      });
-    }
-  },
-
-  /**
-   * Add new customer
-   * 
-   * @param customerData - Partial customer data
-   */
-  addCustomer: async (customerData: Partial<Customer>) => {
-    set({ isLoading: true, error: null });
-    
-    try {
-      const newCustomer = await odooService.createCustomer(customerData);
-      set((state) => ({
-        customers: [...state.customers, newCustomer],
         isLoading: false,
-        error: null
-      }));
-    } catch (error) {
-      console.error('Error adding customer:', error);
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to add customer',
-        isLoading: false 
       });
-      throw error;
     }
   },
 
   /**
-   * Update existing customer
+   * Get customer by ID
    * 
    * @param id - Customer ID
-   * @param updates - Partial customer data to update
+   * @returns Customer or undefined
    */
-  updateCustomer: async (id: string, updates: Partial<Customer>) => {
-    set({ isLoading: true, error: null });
-    
-    try {
-      const updatedCustomer = await odooService.updateCustomer(id, updates);
-      set((state) => ({
-        customers: state.customers.map((c) => 
-          c.id === id ? updatedCustomer : c
-        ),
-        isLoading: false,
-        error: null
-      }));
-    } catch (error) {
-      console.error('Error updating customer:', error);
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to update customer',
-        isLoading: false 
-      });
-      throw error;
-    }
+  getCustomerById: (id: string) => {
+    return get().customers.find((c) => c.id === id);
   },
 
   /**
-   * Delete customer (marks as inactive in Odoo)
+   * Add customer to store
+   * Used after creating a new customer
+   * 
+   * @param customer - Customer to add
+   */
+  addCustomer: (customer: Customer) => {
+    set((state) => ({
+      customers: [...state.customers, customer],
+    }));
+  },
+
+  /**
+   * Update customer in store
    * 
    * @param id - Customer ID
+   * @param updates - Fields to update
    */
-  deleteCustomer: async (id: string) => {
-    set({ isLoading: true, error: null });
-    
-    try {
-      // Mark as inactive instead of hard delete
-      await odooService.updateCustomer(id, { status: 'inactive' });
-      set((state) => ({
-        customers: state.customers.filter((c) => c.id !== id),
-        isLoading: false,
-        error: null
-      }));
-    } catch (error) {
-      console.error('Error deleting customer:', error);
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to delete customer',
-        isLoading: false 
-      });
-      throw error;
-    }
+  updateCustomer: (id: string, updates: Partial<Customer>) => {
+    set((state) => ({
+      customers: state.customers.map((c) =>
+        c.id === id ? { ...c, ...updates } : c
+      ),
+    }));
   },
 
   /**
-   * Clear error state
+   * Clear all customers
+   * Used on logout
    */
-  clearError: () => {
-    set({ error: null });
+  clearCustomers: () => {
+    set({
+      customers: [],
+      isLoading: false,
+      error: null,
+      lastFetched: null,
+    });
   },
 }));
