@@ -21,6 +21,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { Button, Badge, Card, Input } from '@/components/ui';
+import { CreateOrderModal } from '@/components/orders/CreateOrderModal';
 import { odooService } from '@/lib/odoo/odooService';
 import { Order, OrderStatus } from '@/types';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
@@ -41,6 +42,7 @@ export default function OrdersPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   /**
    * Fetch orders on mount
@@ -146,6 +148,13 @@ export default function OrdersPage() {
   };
 
   /**
+   * Handle create order success
+   */
+  const handleCreateSuccess = () => {
+    fetchOrders();
+  };
+
+  /**
    * Export orders to CSV
    */
   const handleExport = () => {
@@ -186,7 +195,7 @@ export default function OrdersPage() {
           <Button
             variant="primary"
             leftIcon={<Plus className="w-4 h-4" />}
-            onClick={() => notifications.info('Coming Soon', 'Create order feature coming soon!')}
+            onClick={() => setShowCreateModal(true)}
           >
             New Order
           </Button>
@@ -470,139 +479,148 @@ export default function OrdersPage() {
           />
 
           {/* Modal */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-scale-in">
-              {/* Modal Header */}
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">
-                      Order Details
-                    </h2>
-                    <p className="text-sm text-gray-500 mt-0.5">
-                      {selectedOrder.orderNumber}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setShowOrderModal(false)}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <span className="text-2xl text-gray-400">×</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Modal Body */}
-              <div className="p-6 space-y-6">
-                {/* Order Info */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Customer</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {selectedOrder.customerName}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Date</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {formatDate(selectedOrder.date)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Status</p>
-                    <Badge variant={getStatusVariant(selectedOrder.status)} dot>
-                      {formatStatus(selectedOrder.status)}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Salesperson</p>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {selectedOrder.salespersonName}
-                    </p>
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-scale-in">
+                {/* Modal Header */}
+                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">
+                        Order Details
+                      </h2>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {selectedOrder.orderNumber}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowOrderModal(false)}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <span className="text-2xl text-gray-400">×</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Order Items */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                    Order Items
-                  </h3>
-                  <div className="space-y-3">
-                    {selectedOrder.items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                      >
-                        <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">
-                          {item.productImage}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">
-                            {item.productName}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {item.quantity} × {formatCurrency(item.unitPrice)}
-                          </p>
-                        </div>
-                        <p className="text-sm font-semibold text-gray-900">
-                          {formatCurrency(item.subtotal)}
-                        </p>
-                      </div>
-                    ))}
+                {/* Modal Body */}
+                <div className="p-6 space-y-6">
+                  {/* Order Info */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Customer</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {selectedOrder.customerName}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Date</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {formatDate(selectedOrder.date)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Status</p>
+                      <Badge variant={getStatusVariant(selectedOrder.status)} dot>
+                        {formatStatus(selectedOrder.status)}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Salesperson</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {selectedOrder.salespersonName}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                {/* Order Summary */}
-                <div className="border-t border-gray-200 pt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Subtotal</span>
-                    <span className="font-medium text-gray-900">
-                      {formatCurrency(selectedOrder.subtotal)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tax (15%)</span>
-                    <span className="font-medium text-gray-900">
-                      {formatCurrency(selectedOrder.tax)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-base font-bold border-t border-gray-200 pt-2 mt-2">
-                    <span className="text-gray-900">Total</span>
-                    <span className="text-primary-600">
-                      {formatCurrency(selectedOrder.total)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Delivery Address */}
-                {selectedOrder.deliveryAddress && (
+                  {/* Order Items */}
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                      Delivery Address
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                      Order Items
                     </h3>
-                    <p className="text-sm text-gray-600">
-                      {selectedOrder.deliveryAddress}
-                    </p>
+                    <div className="space-y-3">
+                      {selectedOrder.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                        >
+                          <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">
+                            {item.productImage}
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">
+                              {item.productName}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {item.quantity} × {formatCurrency(item.unitPrice)}
+                            </p>
+                          </div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {formatCurrency(item.subtotal)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                )}
-              </div>
 
-              {/* Modal Footer */}
-              <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-                <Button
-                  variant="secondary"
-                  onClick={() => setShowOrderModal(false)}
-                >
-                  Close
-                </Button>
-                <Button variant="primary">
-                  Print Order
-                </Button>
+                  {/* Order Summary */}
+                  <div className="border-t border-gray-200 pt-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Subtotal</span>
+                      <span className="font-medium text-gray-900">
+                        {formatCurrency(selectedOrder.subtotal)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Tax (15%)</span>
+                      <span className="font-medium text-gray-900">
+                        {formatCurrency(selectedOrder.tax)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-base font-bold border-t border-gray-200 pt-2 mt-2">
+                      <span className="text-gray-900">Total</span>
+                      <span className="text-primary-600">
+                        {formatCurrency(selectedOrder.total)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Delivery Address */}
+                  {selectedOrder.deliveryAddress && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                        Delivery Address
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {selectedOrder.deliveryAddress}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowOrderModal(false)}
+                  >
+                    Close
+                  </Button>
+                  <Button variant="primary">
+                    Print Order
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
         </>
       )}
+
+      {/* Create Order Modal */}
+      <CreateOrderModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={handleCreateSuccess}
+      />
     </div>
   );
 }
