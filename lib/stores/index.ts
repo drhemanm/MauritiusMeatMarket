@@ -12,4 +12,5 @@ export { useSyncStore } from './syncStore';
 export { useNotificationStore, useNotifications } from './notificationStore';
 export { useUIStore } from './uiStore';
 export { useCustomerStore } from './customerStore';
-export { useProductStore } from './productStore'; // ADD THIS LINE
+export { useProductStore } from './productStore';
+export { useReportsStore } from './reportsStore'; // ADD THIS LINE
