@@ -9,7 +9,7 @@
 
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout';
 import { useAuthStore } from '@/lib/stores';
@@ -21,20 +21,27 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const { checkAuth, isAuthenticated } = useAuthStore();
+  const [isChecking, setIsChecking] = useState(true);
 
   /**
    * Check authentication on mount
    */
   useEffect(() => {
     checkAuth();
-    
-    if (!isAuthenticated) {
+    setIsChecking(false);
+  }, [checkAuth]);
+
+  /**
+   * Redirect if not authenticated
+   */
+  useEffect(() => {
+    if (!isChecking && !isAuthenticated) {
       router.push('/login');
     }
-  }, [checkAuth, isAuthenticated, router]);
+  }, [isChecking, isAuthenticated, router]);
 
   // Show loading while checking auth
-  if (!isAuthenticated) {
+  if (isChecking || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
