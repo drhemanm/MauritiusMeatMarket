@@ -203,14 +203,13 @@ export function generateMockCustomers(): Customer[] {
       name: 'Le Gourmet Restaurant',
       email: 'orders@legourmet.mu',
       phone: '+230 5123 4567',
-      status: 'active',
-      totalOrders: 45,
-      totalSpent: 125000,
-      lastOrder: '2024-09-28',
-      lastOrderDate: '2024-09-28',
       address: '123 Royal Road',
       city: 'Port Louis',
       country: 'Mauritius',
+      status: 'active',
+      totalOrders: 45,
+      totalSpent: 125000,
+      lastOrderDate: '2024-09-28',
       billingAddress: '123 Royal Road, Port Louis',
       shippingAddress: '123 Royal Road, Port Louis',
       company: 'Le Gourmet Ltd',
@@ -225,14 +224,13 @@ export function generateMockCustomers(): Customer[] {
       name: 'Ocean View Hotel',
       email: 'procurement@oceanview.mu',
       phone: '+230 5234 5678',
-      status: 'active',
-      totalOrders: 32,
-      totalSpent: 89000,
-      lastOrder: '2024-09-25',
-      lastOrderDate: '2024-09-25',
       address: '456 Coastal Road',
       city: 'Flic en Flac',
       country: 'Mauritius',
+      status: 'active',
+      totalOrders: 32,
+      totalSpent: 89000,
+      lastOrderDate: '2024-09-25',
       billingAddress: '456 Coastal Road, Flic en Flac',
       shippingAddress: '456 Coastal Road, Flic en Flac',
       company: 'Ocean View Hotels Ltd',
@@ -247,14 +245,13 @@ export function generateMockCustomers(): Customer[] {
       name: 'SuperMart Ltd',
       email: 'buying@supermart.mu',
       phone: '+230 5345 6789',
-      status: 'active',
-      totalOrders: 78,
-      totalSpent: 234000,
-      lastOrder: '2024-09-30',
-      lastOrderDate: '2024-09-30',
       address: '789 Market Street',
       city: 'Curepipe',
       country: 'Mauritius',
+      status: 'active',
+      totalOrders: 78,
+      totalSpent: 234000,
+      lastOrderDate: '2024-09-30',
       billingAddress: '789 Market Street, Curepipe',
       shippingAddress: 'Multiple locations',
       company: 'SuperMart Ltd',
@@ -269,14 +266,13 @@ export function generateMockCustomers(): Customer[] {
       name: 'Island Bistro',
       email: 'chef@islandbistro.mu',
       phone: '+230 5456 7890',
-      status: 'active',
-      totalOrders: 28,
-      totalSpent: 56000,
-      lastOrder: '2024-09-29',
-      lastOrderDate: '2024-09-29',
       address: '321 Beach Road',
       city: 'Grand Baie',
       country: 'Mauritius',
+      status: 'active',
+      totalOrders: 28,
+      totalSpent: 56000,
+      lastOrderDate: '2024-09-29',
       billingAddress: '321 Beach Road, Grand Baie',
       shippingAddress: '321 Beach Road, Grand Baie',
       company: 'Island Bistro SARL',
@@ -291,14 +287,13 @@ export function generateMockCustomers(): Customer[] {
       name: 'Fresh Foods Market',
       email: 'orders@freshfoods.mu',
       phone: '+230 5567 8901',
-      status: 'active',
-      totalOrders: 52,
-      totalSpent: 142000,
-      lastOrder: '2024-09-27',
-      lastOrderDate: '2024-09-27',
       address: '654 Main Street',
       city: 'Quatre Bornes',
       country: 'Mauritius',
+      status: 'active',
+      totalOrders: 52,
+      totalSpent: 142000,
+      lastOrderDate: '2024-09-27',
       billingAddress: '654 Main Street, Quatre Bornes',
       shippingAddress: '654 Main Street, Quatre Bornes',
       company: 'Fresh Foods Ltd',
@@ -313,14 +308,13 @@ export function generateMockCustomers(): Customer[] {
       name: 'Paradise Resort',
       email: 'kitchen@paradiseresort.mu',
       phone: '+230 5678 9012',
-      status: 'active',
-      totalOrders: 38,
-      totalSpent: 168000,
-      lastOrder: '2024-09-26',
-      lastOrderDate: '2024-09-26',
       address: '987 Coastal Highway',
       city: 'Belle Mare',
       country: 'Mauritius',
+      status: 'active',
+      totalOrders: 38,
+      totalSpent: 168000,
+      lastOrderDate: '2024-09-26',
       billingAddress: '987 Coastal Highway, Belle Mare',
       shippingAddress: '987 Coastal Highway, Belle Mare',
       company: 'Paradise Resort Group',
@@ -360,7 +354,10 @@ export function generateMockOrders(): Order[] {
     for (let j = 0; j < itemCount; j++) {
       const product = products[Math.floor(Math.random() * products.length)];
       const quantity = Math.floor(Math.random() * 10) + 1;
-      const itemSubtotal = product.price * quantity;
+      const discount = Math.random() > 0.7 ? Math.floor(Math.random() * 20) : 0; // 30% chance of discount
+      const itemSubtotalBeforeDiscount = product.price * quantity;
+      const discountAmount = itemSubtotalBeforeDiscount * (discount / 100);
+      const itemSubtotal = itemSubtotalBeforeDiscount - discountAmount;
       
       items.push({
         id: `item-${i}-${j}`,
@@ -369,15 +366,15 @@ export function generateMockOrders(): Order[] {
         productImage: product.image,
         quantity,
         unitPrice: product.price,
+        discount,
         subtotal: itemSubtotal,
-        tax: itemSubtotal * 0.15,
-        discount: 0,
+        tax: itemSubtotal * 0.15, // 15% tax
       });
       
       subtotal += itemSubtotal;
     }
     
-    const tax = subtotal * 0.15;
+    const tax = subtotal * 0.15; // 15% VAT
     const total = subtotal + tax;
     
     // Generate date within last 90 days
