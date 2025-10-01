@@ -67,9 +67,9 @@ export interface OrderLine {
   productImage: string;
   quantity: number;
   unitPrice: number;
+  discount?: number;
   subtotal: number;
   tax?: number;
-  discount?: number;
 }
 
 /**
@@ -100,9 +100,20 @@ export interface Order {
  */
 export interface CreateOrderData {
   customerId: string;
-  items: Omit<OrderLine, 'id' | 'subtotal'>[];
+  customerName?: string;
+  items: {
+    productId: string;
+    productName: string;
+    productImage: string;
+    quantity: number;
+    unitPrice: number;
+    discount?: number;
+  }[];
   deliveryAddress?: string;
   notes?: string;
+  signature?: string;
+  salespersonId?: string;
+  salespersonName?: string;
 }
 
 // ==================== CUSTOMERS ====================
@@ -120,18 +131,13 @@ export interface Customer {
   name: string;
   email: string;
   phone: string;
-  status: CustomerStatus;
-  totalOrders: number;
-  totalSpent: number;
-  lastOrder: string;
-  lastOrderDate: string;
-  
-  // Address information
   address: string;
   city: string;
   country: string;
-  
-  // Optional fields
+  status: CustomerStatus;
+  totalOrders: number;
+  totalSpent: number;
+  lastOrderDate: string;
   billingAddress?: string;
   shippingAddress?: string;
   company?: string;
