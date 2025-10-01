@@ -14,7 +14,7 @@
 
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -46,8 +46,7 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { useReportsStore } from '@/lib/stores';
-import { formatCurrency, formatNumber, formatDate } from '@/lib/utils';
+import { formatCurrency, formatNumber } from '@/lib/utils';
 import { useNotifications } from '@/lib/stores/notificationStore';
 
 type DateRange = '7days' | '30days' | '90days' | 'year' | 'custom';
@@ -55,20 +54,15 @@ type DateRange = '7days' | '30days' | '90days' | 'year' | 'custom';
 const COLORS = ['#4F46E5', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6'];
 
 export default function ReportsPage() {
-  const { fetchReports, isLoading } = useReportsStore();
   const notifications = useNotifications();
 
   // State
   const [dateRange, setDateRange] = useState<DateRange>('30days');
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
+  const [isLoading] = useState(false);
 
-  // Fetch reports on mount
-  useEffect(() => {
-    fetchReports(dateRange);
-  }, [fetchReports, dateRange]);
-
-  // Get mock data (replace with actual data from store)
+  // Get mock data (replace with actual data from Odoo later)
   const {
     kpis,
     salesTrend,
