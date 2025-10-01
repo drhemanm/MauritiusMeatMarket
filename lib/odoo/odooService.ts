@@ -411,6 +411,9 @@ class OdooService {
       // TODO: Replace with actual Odoo API call
 
       // Mock implementation
+      const now = new Date().toISOString();
+      const today = now.split('T')[0];
+      
       const newCustomer: Customer = {
         id: `cust-${Date.now()}`,
         name: customerData.name || '',
@@ -419,14 +422,18 @@ class OdooService {
         status: 'active',
         totalOrders: 0,
         totalSpent: 0,
-        lastOrder: new Date().toISOString().split('T')[0],
+        lastOrder: today,
+        lastOrderDate: today,
+        address: customerData.address || '',
+        city: customerData.city || '',
+        country: customerData.country || 'Mauritius',
         billingAddress: customerData.billingAddress,
         shippingAddress: customerData.shippingAddress,
         company: customerData.company,
         taxId: customerData.taxId,
         notes: customerData.notes,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
       };
 
       return newCustomer;
