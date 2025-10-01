@@ -258,6 +258,77 @@ class OfflineService {
     });
   }
 
+  /**
+   * Create offline order with signature
+   * Used when creating orders offline
+   * 
+   * @param orderData - Order data
+   * @returns Created order
+   */
+  public async createOfflineOrder(orderData: any): Promise<Order> {
+    // Generate local order number
+    const timestamp = Date.now();
+    const localOrderNumber = `LOCAL-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${String(timestamp).slice(-4)}`;
+    
+    // Calculate totals
+    const itemsWithCalculations = orderData.items.map((item: any, index: number) => {
+      const subtotalBeforeDiscount = item.quantity * item.unitPrice;
+      const discountAmount = subtotalBeforeDiscount * (item.discount || 0) / 100;
+      const subtotal = subtotalBeforeDiscount - discountAmount;
+      
+      return {
+        id: `item-${timestamp}-${index}`,
+        productId: item.productId,
+        productName: item.productName,
+        productImage: item.productImage,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount || 0,
+        subtotal: subtotal,
+      };
+    });
+
+    const subtotal = itemsWithCalculations.reduce((sum: number, item: any) => sum + item.subtotal, 0);
+    const tax = subtotal * 0.15;
+    const total = subtotal + tax;
+
+    const offlineOrder: Order = {
+      id: `offline-${timestamp}`,
+      orderNumber: localOrderNumber,
+      customerId: orderData.customerId,
+      customerName: orderData.customerName,
+      date: new Date().toISOString().split('T')[0],
+      status: 'pending',
+      items: itemsWithCalculations,
+      subtotal: subtotal,
+      tax: tax,
+      total: total,
+      salespersonId: orderData.salespersonId || '',
+      salespersonName: orderData.salespersonName || '',
+      deliveryAddress: orderData.deliveryAddress,
+      notes: orderData.notes,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      syncStatus: 'pending',
+    };
+
+    // Save to IndexedDB
+    await this.saveOrderLocally(offlineOrder);
+
+    // Add to sync queue
+    await this.addToSyncQueue({
+      type: 'order',
+      action: 'create',
+      data: {
+        ...orderData,
+        localOrderId: offlineOrder.id,
+        localOrderNumber: localOrderNumber,
+      },
+    });
+
+    return offlineOrder;
+  }
+
   // ==================== CUSTOMERS OFFLINE STORAGE ====================
 
   /**
