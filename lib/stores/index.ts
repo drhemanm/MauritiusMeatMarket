@@ -11,3 +11,4 @@ export { useAuthStore } from './authStore';
 export { useSyncStore } from './syncStore';
 export { useNotificationStore, useNotifications } from './notificationStore';
 export { useUIStore } from './uiStore';
+export { useCustomerStore } from './customerStore';
