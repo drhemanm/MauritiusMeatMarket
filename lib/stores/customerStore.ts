@@ -26,6 +26,7 @@ interface CustomerState {
   getCustomerById: (id: string) => Customer | undefined;
   addCustomer: (customer: Customer) => void;
   updateCustomer: (id: string, updates: Partial<Customer>) => void;
+  deleteCustomer: (id: string) => void;
   clearCustomers: () => void;
 }
 
@@ -115,6 +116,17 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
       customers: state.customers.map((c) =>
         c.id === id ? { ...c, ...updates } : c
       ),
+    }));
+  },
+
+  /**
+   * Delete customer from store
+   * 
+   * @param id - Customer ID
+   */
+  deleteCustomer: (id: string) => {
+    set((state) => ({
+      customers: state.customers.filter((c) => c.id !== id),
     }));
   },
 
